@@ -1,1 +1,14 @@
-[]
+{
+  "users": [
+    {
+      "email": "jane@doe.com",
+      "password": "password",
+      "fingerprint": "ovo2LyoYM8rJZ1fOG4cW"
+    },
+    {
+      "email": "jane@doe.com",
+      "password": "$2b$10$nlF3hgi5EskQ/.7fuNhPWe96l0utdniyKJGIpsAIMRTgkVdc/lh3G",
+      "fingerprint": "ovo2LyoYM8rJZ1fOG4cW"
+    }
+  ]
+}

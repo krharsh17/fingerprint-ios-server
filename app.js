@@ -1,8 +1,10 @@
-const { FingerprintJsServerApiClient } = require('@fingerprintjs/fingerprintjs-pro-server-api');
-const express = require("express")
-const dotenv = require("dotenv")
-const cors = require("cors")
-const db = await JSONFilePreset('db.json', { users: [] })
+import { FingerprintJsServerApiClient } from '@fingerprintjs/fingerprintjs-pro-server-api';
+import express from "express"
+import dotenv from "dotenv"
+import cors from "cors"
+import { JSONFilePreset } from 'lowdb/node'
+import bcrypt from "bcrypt"
+const saltRounds = 10
 
 let app = express()
 
@@ -53,9 +55,11 @@ const validateIds = async (requestId, visitorId) => {
 
 const createUser = async (email, password, fingerprint, onSuccess, onError) => {
     try {
-        const { users } = db.data;
+        const db = await JSONFilePreset('./db.json', { users: [] })
+        let users = db.data.users || [];
+
         // Check if the fingerprint already exists
-        let usersWithCurrentFingerprint = await users.map(user => user.fingerprint === fingerprint);
+        let usersWithCurrentFingerprint = users.map(user => user.fingerprint === fingerprint);
 
         // Check if the fingerprint was added in the last 30 minutes
         const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
@@ -63,14 +67,16 @@ const createUser = async (email, password, fingerprint, onSuccess, onError) => {
         const signupsWithinLastThirtyMinutes = usersWithCurrentFingerprint.map(user => user.createdAt > thirtyMinutesAgo)
 
         // Check if more than a certain number of signups have occurred within the last 30 minutes
-        const maxSignupsAllowed = 1; // Only one signup is allowed every 30 minutes
+        const maxSignupsAllowed = 5; // Only five new accounts are allowed every 30 minutes
         if (signupsWithinLastThirtyMinutes.length >= maxSignupsAllowed) {
-            // Handle the condition where more than the allowed number of signups occurred within the last 30 minutes
-            return {message: "Unable to create an account. Only one account can be created every 30 minutes.", error: true};
+            return {message: "Unable to create an account. Only five accounts can be created every 30 minutes.", error: true};
         }
 
+        const hashedPassword = await bcrypt.hash(password, saltRounds)
+
         // Save the user with the existing fingerprint reference
-        await db.update(({ users }) => users.push({ email, password, fingerprint }))
+        db.data.users.push({ email, password: hashedPassword, fingerprint })
+        await db.write()
 
         // Redirect the user to the dashboard upon successful registration
         return { message: "User created successfully", error: false };
@@ -80,6 +86,8 @@ const createUser = async (email, password, fingerprint, onSuccess, onError) => {
 };
 
 app.post("/register", async (req, res) => {
+    
+    try{
     
     // Extract request data
     const { email, password, requestId, visitorId } = req.body
@@ -100,9 +108,11 @@ app.post("/register", async (req, res) => {
     }
     
     res.json({message: result.message})
+} catch (e) {
+    console.error(e)
+}
     
 })
-
 
 app.post("/api/visitorInfo", (req, res) => {
 
