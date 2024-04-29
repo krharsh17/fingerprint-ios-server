@@ -59,12 +59,12 @@ const createUser = async (email, password, fingerprint, onSuccess, onError) => {
         let users = db.data.users || [];
 
         // Check if the fingerprint already exists
-        let usersWithCurrentFingerprint = users.map(user => user.fingerprint === fingerprint);
+        let usersWithCurrentFingerprint = users.filter(user => user.fingerprint === fingerprint);
 
         // Check if the fingerprint was added in the last 30 minutes
         const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
 
-        const signupsWithinLastThirtyMinutes = usersWithCurrentFingerprint.map(user => user.createdAt > thirtyMinutesAgo)
+        const signupsWithinLastThirtyMinutes = usersWithCurrentFingerprint.filter(user => user.createdAt > thirtyMinutesAgo.valueOf())
 
         // Check if more than a certain number of signups have occurred within the last 30 minutes
         const maxSignupsAllowed = 5; // Only five new accounts are allowed every 30 minutes
@@ -74,8 +74,10 @@ const createUser = async (email, password, fingerprint, onSuccess, onError) => {
 
         const hashedPassword = await bcrypt.hash(password, saltRounds)
 
+        // Add a check here to see if a user with the same email exists already. This is usually done through ORMs, so a manual implementation for lowdb has been ommitted here.
+
         // Save the user with the existing fingerprint reference
-        db.data.users.push({ email, password: hashedPassword, fingerprint })
+        db.data.users.push({ email, password: hashedPassword, fingerprint, createdAt: Date.now() })
         await db.write()
 
         // Redirect the user to the dashboard upon successful registration
@@ -86,8 +88,10 @@ const createUser = async (email, password, fingerprint, onSuccess, onError) => {
 };
 
 app.post("/register", async (req, res) => {
-    
+
     try{
+
+        console.log(req.body)
     
     // Extract request data
     const { email, password, requestId, visitorId } = req.body
@@ -110,6 +114,7 @@ app.post("/register", async (req, res) => {
     res.json({message: result.message})
 } catch (e) {
     console.error(e)
+    res.status(400).json({message: e.message})
 }
     
 })
@@ -121,22 +126,9 @@ app.post("/api/visitorInfo", (req, res) => {
     client
         .getVisitorHistory(visitorId)
         .then((visitorHistory) => {
-            res.json(visitorHistory.visits ? visitorHistory.visits[0] : {})
+            res.json(visitorHistory)
         })
         .catch((error) => {
-            console.error(error)
-            res.json({ "message": "Something went wrong. Please try with another visitorId" })
-        });
-
-})
-
-app.post("/api/requestInfo", (req, res) => {
-    const requestId = req.body.requestId
-
-    client.getEvent(requestId)
-        .then((event) => {
-            res.json(event)
-        }).catch((error) => {
             console.error(error)
             res.json({ "message": "Something went wrong. Please try with another visitorId" })
         });
