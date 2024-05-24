@@ -42,11 +42,6 @@ const validateIds = async (requestId, visitorId) => {
         errors.push("Bot alert");
     }
 
-    // Make sure the user is not using a VPN
-    if (eventData.products.vpn.data.result === true) {
-        errors.push("VPN alert");
-    }
-
     return {
         errors,
         fingerprint: eventData.products.identification.data.visitorId   
